@@ -1,0 +1,242 @@
+import customtkinter as ctk
+from tkinter import ttk, messagebox
+from tkcalendar import Calendar
+from datetime import datetime
+import json, os
+
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("blue")
+
+USER_FILE = "users.json"
+
+def load_users():
+    return json.load(open(USER_FILE)) if os.path.exists(USER_FILE) else {}
+
+def save_users(d):
+    json.dump(d, open(USER_FILE,"w"), indent=4)
+
+
+class LoginRegister(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.geometry("480x520")
+        self.title("Login & Register")
+        self.mode="login"
+
+        self.main=ctk.CTkFrame(self, fg_color="#E3EEFF", corner_radius=16)
+        self.main.pack(expand=True, fill="both", padx=20, pady=20)
+
+        self.build()
+
+    def build(self):
+        for w in self.main.winfo_children(): w.destroy()
+
+        title="LOGIN" if self.mode=="login" else "REGISTER"
+        ctk.CTkLabel(self.main, text=title, font=("Segoe UI",26,"bold")).pack(pady=20)
+
+        self.user=ctk.CTkEntry(self.main, placeholder_text="Username", height=40)
+        self.user.pack(padx=30, fill="x", pady=10)
+
+        self.pw=ctk.CTkEntry(self.main, placeholder_text="Password", height=40, show="*")
+        self.pw.pack(padx=30, fill="x", pady=10)
+
+        if self.mode=="register":
+            self.pw2=ctk.CTkEntry(self.main, placeholder_text="Konfirmasi Password", height=40, show="*")
+            self.pw2.pack(padx=30, fill="x", pady=10)
+
+        if self.mode=="login":
+            ctk.CTkButton(self.main,text="Login",fg_color="#79AFFF",height=45,command=self.login).pack(padx=30,fill="x",pady=15)
+            switch="Belum punya akun? Register"
+        else:
+            ctk.CTkButton(self.main,text="Register",fg_color="#79AFFF",height=45,command=self.register).pack(padx=30,fill="x",pady=15)
+            switch="Sudah punya akun? Login"
+
+        ctk.CTkButton(self.main,text=switch,fg_color="#4CAF50",height=38,command=self.switch).pack(padx=30,fill="x",pady=5)
+
+    def switch(self):
+        self.mode="register" if self.mode=="login" else "login"
+        self.build()
+
+    def login(self):
+        u=self.user.get()
+        p=self.pw.get()
+        users=load_users()
+        if u in users and users[u]==p:
+            self.destroy()
+            AplikasiKeuangan(u).mainloop()
+        else:
+            messagebox.showerror("Error","Username atau password salah")
+
+    def register(self):
+        u=self.user.get()
+        p=self.pw.get()
+        p2=self.pw2.get()
+
+        if p!=p2:
+            messagebox.showerror("Error","Password tidak cocok")
+            return
+        users=load_users()
+        if u in users:
+            messagebox.showerror("Error","Username sudah ada")
+            return
+        users[u]=p
+        save_users(users)
+        messagebox.showinfo("Sukses","Akun dibuat")
+        self.switch()
+
+
+class AplikasiKeuangan(ctk.CTk):
+    def __init__(self,user):
+        super().__init__()
+        self.user=user
+        self.title("Aplikasi Keuangan")
+        self.geometry("1200x700")
+
+        self.menu=ctk.CTkFrame(self,fg_color="#CFE3FF",width=230)
+        self.menu.pack(side="left",fill="y")
+
+        ctk.CTkLabel(self.menu,text=f"Hi, {user}",font=("Segoe UI",20,"bold")).pack(pady=20)
+        ctk.CTkButton(self.menu,text="Dashboard",command=self.dashboard).pack(fill="x",padx=20,pady=10)
+        ctk.CTkButton(self.menu,text="Transaksi",command=self.transaksi).pack(fill="x",padx=20,pady=10)
+        ctk.CTkButton(self.menu,text="Logout",fg_color="#FF8A65",command=self.logout).pack(fill="x",padx=20,pady=10)
+
+        self.content=ctk.CTkFrame(self,fg_color="#F2F7FF")
+        self.content.pack(side="left",expand=True,fill="both",padx=10,pady=10)
+
+        self.dashboard()
+
+    def clear(self):
+        for w in self.content.winfo_children(): w.destroy()
+
+    def logout(self):
+        self.destroy()
+        LoginRegister().mainloop()
+
+    def dashboard(self):
+        self.clear()
+        ctk.CTkLabel(self.content,text="Dashboard",font=("Segoe UI",34,"bold")).pack(pady=20)
+        ctk.CTkLabel(self.content,text=f"Selamat datang, {self.user}",font=("Segoe UI",22)).pack()
+
+    def transaksi(self):
+        self.clear()
+
+        form=ctk.CTkFrame(self.content,fg_color="#E3EEFF",corner_radius=16)
+        form.pack(fill="x",padx=20,pady=20)
+
+        ctk.CTkLabel(form,text="Input Transaksi",font=("Segoe UI",22,"bold")).pack(pady=10)
+
+        # Inline calendar
+        cal_frame = ctk.CTkFrame(form, fg_color="transparent")
+        cal_frame.pack(pady=10)
+        self.cal = Calendar(cal_frame, selectmode="day", date_pattern="dd-mm-yyyy")
+        self.cal.pack()
+
+        # Inputs
+        self.ket=ctk.CTkEntry(form,placeholder_text="Keterangan",height=40)
+        self.ket.pack(fill="x",padx=20,pady=8)
+
+        self.nom=ctk.CTkEntry(form,placeholder_text="Nominal",height=40)
+        self.nom.pack(fill="x",padx=20,pady=8)
+
+        self.tipe=ctk.CTkComboBox(form,values=["Pemasukan","Pengeluaran"],height=40)
+        self.tipe.set("Pemasukan")
+        self.tipe.pack(padx=20,pady=8)
+
+        ctk.CTkButton(form,text="Tambah",height=45,fg_color="#79AFFF",command=self.add).pack(padx=20,pady=10,fill="x")
+
+        # === TABLE SECTION ===
+        table_frame=ctk.CTkFrame(self.content,fg_color="#E3EEFF",corner_radius=16)
+        table_frame.pack(fill="both",expand=True,padx=20,pady=10)
+
+        # Scrollbars
+        scroll_y = ttk.Scrollbar(table_frame, orient="vertical")
+        scroll_y.pack(side="right", fill="y")
+
+        scroll_x = ttk.Scrollbar(table_frame, orient="horizontal")
+        scroll_x.pack(side="bottom", fill="x")
+
+        # Table
+        self.table=ttk.Treeview(
+            table_frame,
+            columns=("tgl","ket","nom","tipe"),
+            show="headings",
+            yscrollcommand=scroll_y.set,
+            xscrollcommand=scroll_x.set
+        )
+
+        scroll_y.config(command=self.table.yview)
+        scroll_x.config(command=self.table.xview)
+
+        self.table.heading("tgl",text="Tanggal")
+        self.table.column("tgl",width=180,anchor="center")
+
+        self.table.heading("ket",text="Keterangan")
+        self.table.column("ket",width=350,anchor="center")
+
+        self.table.heading("nom",text="Nominal")
+        self.table.column("nom",width=150,anchor="center")
+
+        self.table.heading("tipe",text="Tipe")
+        self.table.column("tipe",width=150,anchor="center")
+
+        self.table.pack(fill="both",expand=True,padx=10,pady=10)
+
+        # Buttons under table
+        btn_box=ctk.CTkFrame(table_frame, fg_color="transparent")
+        btn_box.pack(pady=8)
+
+        ctk.CTkButton(btn_box,text="Hapus Terpilih",fg_color="#FF6B6B",
+                      command=self.delete_selected).pack(side="left",padx=10)
+
+        ctk.CTkButton(btn_box,text="Clear Semua",fg_color="#FF6B6B",
+                      command=self.clear_all).pack(side="left",padx=10)
+
+        self.saldo_label=ctk.CTkLabel(table_frame,text="Total Saldo : Rp 0",
+                                      font=("Segoe UI",22,"bold"))
+        self.saldo_label.pack(pady=10)
+
+    def hitung(self):
+        masuk=0; keluar=0
+        for r in self.table.get_children():
+            _,_,nom,tipe = self.table.item(r)["values"]
+            nom=int(nom)
+            if tipe=="Pemasukan": masuk+=nom
+            else: keluar+=nom
+        saldo=masuk-keluar
+        self.saldo_label.configure(text=f"Total Saldo : Rp {saldo:,}".replace(",", "."))
+
+    def add(self):
+        t=self.cal.get_date()
+        k=self.ket.get()
+        n=self.nom.get()
+        tipe=self.tipe.get()
+
+        if k=="" or n=="":
+            messagebox.showerror("Error","Isi semua kolom!")
+            return
+
+        try: n_int=int(n)
+        except:
+            messagebox.showerror("Error","Nominal harus angka!")
+            return
+
+        self.table.insert("", "end", values=(t,k,n_int,tipe))
+        self.ket.delete(0,"end")
+        self.nom.delete(0,"end")
+        self.hitung()
+
+    def delete_selected(self):
+        sel=self.table.selection()
+        if not sel:
+            messagebox.showwarning("Peringatan","Pilih data!")
+            return
+        for r in sel: self.table.delete(r)
+        self.hitung()
+
+    def clear_all(self):
+        for r in self.table.get_children(): self.table.delete(r)
+        self.hitung()
+
+
+if __name__=="__main__":
+    LoginRegister().mainloop()
